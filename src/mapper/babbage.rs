@@ -18,25 +18,36 @@ use crate::{
 use super::{map::ToHex, EventWriter};
 
 impl EventWriter {
+    pub fn to_babbage_tx_size(
+        &self,
+        body: &KeepRaw<TransactionBody>,
+        aux_data: Option<&KeepRaw<AuxiliaryData>>,
+        witness_set: Option<&KeepRaw<TransactionWitnessSet>>,
+    ) -> usize {
+        body.raw_cbor().len()
+            + aux_data.map(|ax| ax.raw_cbor().len()).unwrap_or(2)
+            + witness_set.map(|ws| ws.raw_cbor().len()).unwrap_or(1)
+    }
+
     pub fn to_babbage_transaction_record(
         &self,
-        body: &TransactionBody,
+        body: &KeepRaw<TransactionBody>,
         tx_hash: &str,
         aux_data: Option<&KeepRaw<AuxiliaryData>>,
         witness_set: Option<&KeepRaw<TransactionWitnessSet>>,
     ) -> Result<TransactionRecord, Error> {
-        let mut record = TransactionRecord::default();
-
-        record.hash.push_str(tx_hash);
-
-        record.fee = body.fee;
-        record.ttl = body.ttl;
-        record.validity_interval_start = body.validity_interval_start;
-
-        record.network_id = body.network_id.as_ref().map(|x| match x {
-            NetworkId::One => 1,
-            NetworkId::Two => 2,
-        });
+        let mut record = TransactionRecord {
+            hash: tx_hash.to_owned(),
+            size: self.to_babbage_tx_size(body, aux_data, witness_set) as u32,
+            fee: body.fee,
+            ttl: body.ttl,
+            validity_interval_start: body.validity_interval_start,
+            network_id: body.network_id.as_ref().map(|x| match x {
+                NetworkId::One => 1,
+                NetworkId::Two => 2,
+            }),
+            ..Default::default()
+        };
 
         let outputs = self.collect_any_output_records(&body.outputs)?;
         record.output_count = outputs.len();
@@ -54,6 +65,11 @@ impl EventWriter {
             }
         }
 
+        // Add Collateral Stuff
+        let collateral_inputs = &body.collateral.as_deref();
+        record.collateral_input_count = collateral_inputs.iter().count();
+        record.has_collateral_output = body.collateral_return.is_some();
+
         // TODO
         // TransactionBodyComponent::ScriptDataHash(_)
         // TransactionBodyComponent::RequiredSigners(_)
@@ -62,6 +78,17 @@ impl EventWriter {
         if self.config.include_transaction_details {
             record.outputs = outputs.into();
             record.inputs = inputs.into();
+
+            // transaction_details collateral stuff
+            record.collateral_inputs =
+                collateral_inputs.map(|inputs| self.collect_input_records(inputs));
+
+            record.collateral_output = body.collateral_return.as_ref().map(|output| match output {
+                TransactionOutput::Legacy(x) => self.to_legacy_output_record(x).unwrap(),
+                TransactionOutput::PostAlonzo(x) => {
+                    self.to_post_alonzo_output_record(x).unwrap()
+                }
+            });
 
             record.metadata = match aux_data {
                 Some(aux_data) => self.collect_metadata_records(aux_data)?.into(),
@@ -120,7 +147,12 @@ impl EventWriter {
             slot: source.header.header_body.slot,
             epoch: relative_epoch.map(|(epoch, _)| epoch),
             epoch_slot: relative_epoch.map(|(_, epoch_slot)| epoch_slot),
-            previous_hash: hex::encode(source.header.header_body.prev_hash),
+            previous_hash: source
+                .header
+                .header_body
+                .prev_hash
+                .map(hex::encode)
+                .unwrap_or_default(),
             cbor_hex: match self.config.include_block_cbor {
                 true => hex::encode(cbor).into(),
                 false => None,
@@ -214,7 +246,7 @@ impl EventWriter {
 
     fn crawl_babbage_transaction(
         &self,
-        tx: &TransactionBody,
+        tx: &KeepRaw<TransactionBody>,
         tx_hash: &str,
         aux_data: Option<&KeepRaw<AuxiliaryData>>,
         witness_set: Option<&KeepRaw<TransactionWitnessSet>>,

@@ -77,6 +77,8 @@ pub fn run(args: &ArgMatches) -> Result<(), Error> {
         false => None,
     };
 
+    let wrap = args.is_present("wrap");
+
     let mapper = MapperConfig {
         include_block_end_events: true,
         ..Default::default()
@@ -114,6 +116,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Error> {
 
     let sink_setup = oura::sinks::terminal::Config {
         throttle_min_span_millis: throttle,
+        wrap: Some(wrap),
     };
 
     let (source_handle, source_output) = match source_setup {
@@ -151,6 +154,13 @@ pub(crate) fn command_definition<'a>() -> clap::Command<'a> {
                 .long("throttle")
                 .takes_value(true)
                 .help("milliseconds to wait between output lines (for easier reading)"),
+        )
+        .arg(
+            clap::Arg::new("wrap")
+                .long("wrap")
+                .short('w')
+                .takes_value(false)
+                .help("long text output should break and continue in the following line"),
         )
         .arg(
             clap::Arg::new("mode")

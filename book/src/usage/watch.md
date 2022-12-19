@@ -17,10 +17,10 @@ oura watch [OPTIONS] <socket>
 ### Options
 
 - `--bearer <bearer>`: an option that specifies the type of bearer to use. Possible values are `tcp` and `unix`. If omitted, the value `unix` is used as default.
-- `--magic <magic>`: the magic number of the network you're connecting to. Possible values are `mainnet`, `testnet` or a numeric value. If omitted, the value `mainnet` is used as default.
+- `--magic <magic>`: the magic number of the network you're connecting to. Possible values are `mainnet`, `testnet`, `preview`, `preprod` or a numeric value. If omitted, the value `mainnet` is used as default.
 - `--mode <mode>`: an option to force the which set of mini-protocols to use when connecting to the Cardano node. Possible values: `node` and `client`.  If omitted, _Oura_ will infer the standard protocols for the specified bearer.
 - `--since <slot>,<hash>`: an option to specify from which point in the chain _Oura_ should start reading from. The point is referenced by passing the slot of the block followed by a comma and the hash of the block (`<slot>,<hash>`). If omitted, _Oura_ will start reading from the tail (tip) of the node.
-
+- `--wrap`: indicates that long output text should break and continue in the following line. If omitted, lines will be truncated to fit in the available terminal width.
 
 ## Examples
 
@@ -48,4 +48,16 @@ oura watch /opt/cardano/cnode/sockets/node0.socket --bearer unix --magic testnet
 oura watch relays-new.cardano-mainnet.iohk.io:3001 \
     --bearer tcp \
     --since 49159253,d034a2d0e4c3076f57368ed59319010c265718f0923057f8ff914a3b6bfd1314
+```
+
+### Watch Live Data From the "Preview" testnet
+
+```sh
+oura watch preview-node.world.dev.cardano.org:30002 --bearer tcp --magic preview
+```
+
+### Watch Live Data From the "Pre-Production" testnet
+
+```sh
+oura watch preprod-node.world.dev.cardano.org:30000 --bearer tcp --magic preprod
 ```

@@ -14,6 +14,7 @@ const THROTTLE_MIN_SPAN_MILLIS: u64 = 300;
 #[derive(Default, Debug, Deserialize)]
 pub struct Config {
     pub throttle_min_span_millis: Option<u64>,
+    pub wrap: Option<bool>,
 }
 
 impl SinkProvider for WithUtils<Config> {
@@ -24,10 +25,11 @@ impl SinkProvider for WithUtils<Config> {
                 .unwrap_or(THROTTLE_MIN_SPAN_MILLIS),
         );
 
+        let wrap = self.inner.wrap.unwrap_or(false);
         let utils = self.utils.clone();
 
         let handle = std::thread::spawn(move || {
-            reducer_loop(throttle_min_span, input, utils).expect("terminal sink loop failed");
+            reducer_loop(throttle_min_span, wrap, input, utils).expect("terminal sink loop failed");
         });
 
         Ok(handle)

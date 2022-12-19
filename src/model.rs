@@ -160,6 +160,8 @@ pub struct TransactionRecord {
     pub validity_interval_start: Option<u64>,
     pub network_id: Option<u32>,
     pub input_count: usize,
+    pub collateral_input_count: usize,
+    pub has_collateral_output: bool,
     pub output_count: usize,
     pub mint_count: usize,
     pub total_output: u64,
@@ -168,6 +170,8 @@ pub struct TransactionRecord {
     pub metadata: Option<Vec<MetadataRecord>>,
     pub inputs: Option<Vec<TxInputRecord>>,
     pub outputs: Option<Vec<TxOutputRecord>>,
+    pub collateral_inputs: Option<Vec<TxInputRecord>>,
+    pub collateral_output: Option<TxOutputRecord>,
     pub mint: Option<Vec<MintRecord>>,
     pub vkey_witnesses: Option<Vec<VKeyWitnessRecord>>,
     pub native_witnesses: Option<Vec<NativeWitnessRecord>>,
@@ -175,6 +179,7 @@ pub struct TransactionRecord {
     pub plutus_redeemers: Option<Vec<PlutusRedeemerRecord>>,
     pub plutus_data: Option<Vec<PlutusDatumRecord>>,
     pub withdrawals: Option<Vec<WithdrawalRecord>>,
+    pub size: u32,
 }
 
 impl From<TransactionRecord> for EventData {
@@ -345,7 +350,7 @@ pub enum EventData {
         pool: String,
         epoch: u64,
     },
-    GenesisKeyDelegation,
+    GenesisKeyDelegation {},
     MoveInstantaneousRewardsCert {
         from_reserves: bool,
         from_treasury: bool,

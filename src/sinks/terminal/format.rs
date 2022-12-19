@@ -1,6 +1,7 @@
 use std::fmt::{Display, Write};
 
 use crossterm::style::{Attribute, Color, Stylize};
+use unicode_truncate::UnicodeTruncateStr;
 
 use crate::{
     model::{
@@ -18,7 +19,7 @@ pub struct LogLine {
     tx_idx: Option<usize>,
     block_num: Option<u64>,
     content: String,
-    max_width: usize,
+    max_width: Option<usize>,
 }
 
 impl LogLine {
@@ -26,7 +27,7 @@ impl LogLine {
         source: &Event,
         prefix: &'static str,
         color: Color,
-        max_width: usize,
+        max_width: Option<usize>,
         content: String,
     ) -> Self {
         LogLine {
@@ -41,7 +42,7 @@ impl LogLine {
 }
 
 impl LogLine {
-    pub fn new(source: &Event, max_width: usize, utils: &Utils) -> LogLine {
+    pub fn new(source: &Event, max_width: Option<usize>, utils: &Utils) -> LogLine {
         match &source.data {
             EventData::Block(BlockRecord {
                 era,
@@ -282,7 +283,7 @@ impl LogLine {
                 max_width,
                 format!("{{ pool: {}, epoch: {} }}", pool, epoch),
             ),
-            EventData::GenesisKeyDelegation => LogLine::new_raw(
+            EventData::GenesisKeyDelegation { } => LogLine::new_raw(
                 source,
                 "GENESIS",
                 Color::Magenta,
@@ -361,8 +362,6 @@ impl LogLine {
 
 impl Display for LogLine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let flex_width = self.max_width - 40;
-
         format!(
             "BLOCK:{:0>7} █ TX:{:0>2}",
             self.block_num
@@ -387,13 +386,13 @@ impl Display for LogLine {
         f.write_char(' ')?;
 
         {
-            let max_width = std::cmp::min(self.content.len(), flex_width);
+            let available_width = self.max_width.map(|x| x - 35);
 
-            match self.content.len() {
-                x if x > max_width => {
-                    let partial: String = self.content.chars().take(max_width - 3).collect();
+            match available_width {
+                Some(width) if width < self.content.len() => {
+                    let (partial, _) = &self.content.unicode_truncate(width);
+                    let partial = format!("{partial}...");
                     partial.with(Color::Grey).fmt(f)?;
-                    f.write_str("...")?;
                 }
                 _ => {
                     let full = &self.content[..];
